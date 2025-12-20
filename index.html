@@ -23,14 +23,20 @@
   <div id="values">Not connected</div>
   <h4>QR code for this page (scan to open)</h4>
   <div id="qrcode"></div>
+
   <script>
+/*
+  Updated UUIDs — service and characteristics must match the ESP sketch.
+  Service UUID provided: e4c85a20-7f8b-4a2f-9b1b-1c2f9d000001
+  Characteristic UUIDs use the same base with endings 000002..000007
+*/
 const SERVICE = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000001';
 const SOIL1 = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000002';
 const SOIL2 = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000003';
 const WATER = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000004';
 const RELAY = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000005';
-const LOGC = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000006';
-const CTRL = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000007';
+const LOGC =  'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000006';
+const CTRL =  'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000007';
 
 let device, server, service;
 let soil1Char, soil2Char, waterChar, relayChar, logChar, ctrlChar;
@@ -49,6 +55,7 @@ function log(msg){ vals.textContent = msg + '\n' + vals.textContent; }
 
 document.getElementById('btnConnect').onclick = async () => {
   try {
+    // request device; include the service UUID so browser will allow access to it
     device = await navigator.bluetooth.requestDevice({
       filters: [{ name: 'ESP32_Soil' }],
       optionalServices: [SERVICE]
@@ -69,11 +76,13 @@ document.getElementById('btnConnect').onclick = async () => {
       const v = new TextDecoder().decode(e.target.value);
       updateValues('Soil1', v + ' %');
     });
+
     await soil2Char.startNotifications();
     soil2Char.addEventListener('characteristicvaluechanged', e => {
       const v = new TextDecoder().decode(e.target.value);
       updateValues('Soil2', v + ' %');
     });
+
     await waterChar.startNotifications();
     waterChar.addEventListener('characteristicvaluechanged', e => {
       const v = new TextDecoder().decode(e.target.value);
@@ -136,7 +145,6 @@ function offerDownload() {
   const a = document.createElement('a');
   a.href = url;
   a.download = 'esp_logs.csv';
-  a.textContent = 'Download logs';
   a.click();
   URL.revokeObjectURL(url);
   log('Logs downloaded.');
