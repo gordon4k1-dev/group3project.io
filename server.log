@@ -1,7 +1,13 @@
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2849]
+INFO:     Stopping reloader process [2118]
 INFO:     Will watch for changes in these directories: ['/app']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [2118] using StatReload
-INFO:     Started server process [2240]
+INFO:     Started reloader process [3204] using StatReload
+INFO:     Started server process [3346]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:50608 - "GET /search?prompt=hello HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40686 - "OPTIONS /search?prompt=hello HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48294 - "GET /search?prompt=What%20is%20the%20capital%20of%20France%3F HTTP/1.1" 200 OK

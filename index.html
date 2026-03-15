@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ESP32 BLE Monitor</title>
+  <title>ESP32 BLE Monitor & AI Integration</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    body{font-family:Arial;padding:12px}
+    body{font-family:Arial;padding:12px; max-width: 600px; margin: 0 auto;}
     button{margin:4px;padding:8px}
-    #values{white-space:pre-wrap;background:#f6f6f6;padding:8px;border-radius:6px}
+    input[type="text"] { width: 100%; padding: 8px; margin-bottom: 8px; box-sizing: border-box;}
+    #values, #aiResult {white-space:pre-wrap;background:#f6f6f6;padding:8px;border-radius:6px; min-height: 50px; margin-bottom: 16px;}
   </style>
 </head>
 <body>
@@ -21,6 +22,19 @@
   </div>
   <h4>Live values</h4>
   <div id="values">Not connected</div>
+
+  <hr>
+
+  <h2>AI Backend Search (Phi-3 Mini)</h2>
+  <div>
+    <input type="text" id="aiPrompt" placeholder="Enter your prompt here...">
+    <button id="btnAskAI">Ask AI</button>
+  </div>
+  <h4>AI Response</h4>
+  <div id="aiResult">Awaiting input...</div>
+
+  <hr>
+
   <h4>QR code for this page (scan to open)</h4>
   <div id="qrcode"></div>
 
@@ -44,6 +58,7 @@ let logLines = [];
 
 const vals = document.getElementById('values');
 const qrContainer = document.getElementById('qrcode');
+const aiResult = document.getElementById('aiResult');
 
 new QRCode(qrContainer, {
   text: location.href,
@@ -149,6 +164,27 @@ function offerDownload() {
   URL.revokeObjectURL(url);
   log('Logs downloaded.');
 }
+
+// AI Backend Integration
+document.getElementById('btnAskAI').onclick = async () => {
+  const promptInput = document.getElementById('aiPrompt').value;
+  if (!promptInput.trim()) {
+    aiResult.textContent = 'Please enter a prompt.';
+    return;
+  }
+
+  aiResult.textContent = 'Thinking...';
+  try {
+    const response = await fetch(`http://localhost:8000/search?prompt=${encodeURIComponent(promptInput)}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    aiResult.textContent = data.response || JSON.stringify(data);
+  } catch (error) {
+    aiResult.textContent = 'Error communicating with AI backend:\n' + error.message;
+  }
+};
   </script>
 </body>
 </html>
