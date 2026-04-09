@@ -3,152 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ESP32 BLE Monitor</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <title>Local AI Search (Phi-3 Mini)</title>
   <style>
-    body{font-family:Arial;padding:12px}
-    button{margin:4px;padding:8px}
-    #values{white-space:pre-wrap;background:#f6f6f6;padding:8px;border-radius:6px}
+    body{font-family:Arial;padding:12px; max-width: 600px; margin: 0 auto;}
+    button{margin:4px;padding:8px; cursor: pointer;}
+    input[type="text"] { width: 100%; padding: 8px; margin-bottom: 8px; box-sizing: border-box;}
+    #aiResult {white-space:pre-wrap;background:#f6f6f6;padding:16px;border-radius:6px; min-height: 100px; margin-top: 16px; border: 1px solid #ccc;}
   </style>
 </head>
 <body>
-  <h2>ESP32 BLE Monitor</h2>
+  <h2>Local AI Search (Phi-3 Mini)</h2>
   <div>
-    <button id="btnConnect">Connect</button>
-    <button id="btnRelayOn" disabled>Relay ON</button>
-    <button id="btnRelayOff" disabled>Relay OFF</button>
-    <button id="btnGetLog" disabled>Download Logs (BLE)</button>
+    <input type="text" id="aiPrompt" placeholder="Enter your search prompt here...">
+    <button id="btnAskAI">Ask AI</button>
   </div>
-  <h4>Live values</h4>
-  <div id="values">Not connected</div>
-  <h4>QR code for this page (scan to open)</h4>
-  <div id="qrcode"></div>
+
+  <h4>AI Response</h4>
+  <div id="aiResult">Awaiting input...</div>
 
   <script>
-/*
-  Updated UUIDs — service and characteristics must match the ESP sketch.
-  Service UUID provided: e4c85a20-7f8b-4a2f-9b1b-1c2f9d000001
-  Characteristic UUIDs use the same base with endings 000002..000007
-*/
-const SERVICE = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000001';
-const SOIL1 = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000002';
-const SOIL2 = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000003';
-const WATER = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000004';
-const RELAY = 'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000005';
-const LOGC =  'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000006';
-const CTRL =  'e4c85a20-7f8b-4a2f-9b1b-1c2f9d000007';
+    const aiResult = document.getElementById('aiResult');
 
-let device, server, service;
-let soil1Char, soil2Char, waterChar, relayChar, logChar, ctrlChar;
-let logLines = [];
-
-const vals = document.getElementById('values');
-const qrContainer = document.getElementById('qrcode');
-
-new QRCode(qrContainer, {
-  text: location.href,
-  width: 160,
-  height: 160
-});
-
-function log(msg){ vals.textContent = msg + '\n' + vals.textContent; }
-
-document.getElementById('btnConnect').onclick = async () => {
-  try {
-    // request device; include the service UUID so browser will allow access to it
-    device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: 'ESP32_Soil' }],
-      optionalServices: [SERVICE]
-    });
-    log('Selected: ' + device.name);
-    server = await device.gatt.connect();
-    service = await server.getPrimaryService(SERVICE);
-
-    soil1Char = await service.getCharacteristic(SOIL1);
-    soil2Char = await service.getCharacteristic(SOIL2);
-    waterChar = await service.getCharacteristic(WATER);
-    relayChar = await service.getCharacteristic(RELAY);
-    logChar = await service.getCharacteristic(LOGC);
-    ctrlChar = await service.getCharacteristic(CTRL);
-
-    await soil1Char.startNotifications();
-    soil1Char.addEventListener('characteristicvaluechanged', e => {
-      const v = new TextDecoder().decode(e.target.value);
-      updateValues('Soil1', v + ' %');
-    });
-
-    await soil2Char.startNotifications();
-    soil2Char.addEventListener('characteristicvaluechanged', e => {
-      const v = new TextDecoder().decode(e.target.value);
-      updateValues('Soil2', v + ' %');
-    });
-
-    await waterChar.startNotifications();
-    waterChar.addEventListener('characteristicvaluechanged', e => {
-      const v = new TextDecoder().decode(e.target.value);
-      updateValues('Water', v);
-    });
-
-    // log notifications
-    await logChar.startNotifications();
-    logChar.addEventListener('characteristicvaluechanged', e => {
-      const v = new TextDecoder().decode(e.target.value);
-      if (v === '!END!') {
-        // finished streaming, offer download
-        offerDownload();
-      } else {
-        logLines.push(v);
+    document.getElementById('btnAskAI').onclick = async () => {
+      const promptInput = document.getElementById('aiPrompt').value;
+      if (!promptInput.trim()) {
+        aiResult.textContent = 'Please enter a prompt.';
+        return;
       }
-    });
 
-    document.getElementById('btnRelayOn').disabled = false;
-    document.getElementById('btnRelayOff').disabled = false;
-    document.getElementById('btnGetLog').disabled = false;
-    log('Connected and notifications started');
-  } catch (err) {
-    log('Error: ' + err);
-  }
-};
-
-function updateValues(name, value) {
-  const now = new Date().toLocaleTimeString();
-  const before = vals.textContent;
-  vals.textContent = `${name}: ${value}   (${now})\n` + before;
-}
-
-document.getElementById('btnRelayOn').onclick = async () => {
-  if (!relayChar) return;
-  await relayChar.writeValue(new TextEncoder().encode('1'));
-  log('Relay ON command sent');
-};
-document.getElementById('btnRelayOff').onclick = async () => {
-  if (!relayChar) return;
-  await relayChar.writeValue(new TextEncoder().encode('0'));
-  log('Relay OFF command sent');
-};
-
-document.getElementById('btnGetLog').onclick = async () => {
-  if (!ctrlChar) return;
-  logLines = [];
-  await ctrlChar.writeValue(new TextEncoder().encode('D')); // ask device to stream logs
-  log('Requested log dump; waiting for notifications...');
-};
-
-function offerDownload() {
-  if (!logLines.length) {
-    log('No log lines received.');
-    return;
-  }
-  const csv = logLines.join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'esp_logs.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-  log('Logs downloaded.');
-}
+      aiResult.textContent = 'Thinking...';
+      try {
+        const response = await fetch(`http://localhost:8000/search?prompt=${encodeURIComponent(promptInput)}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        aiResult.textContent = data.response || JSON.stringify(data);
+      } catch (error) {
+        aiResult.textContent = 'Error communicating with AI backend:\n' + error.message;
+      }
+    };
   </script>
 </body>
 </html>
